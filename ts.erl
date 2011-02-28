@@ -1,17 +1,52 @@
 -module (ts).
 -export ([in/2, out/2, new/0]).
+-import (dataServer, [dataServer/0]).
+-import (match, [match/2]).
 
 new() ->
-  Server = spawn_link(fun() -> server() end).
+  Dataserver = spawn_link(fun() -> dataServer() end),
+  Server = spawn_link(fun() -> server(Dataserver) end).
 
-server() ->
+server(Dataserver) -> server(Dataserver, []).
+
+server(Dataserver, Backlog) ->
   receive
-    {get, Pattern} ->
-      server();
-    {put, Pattern} ->
-      server()
+    {get, Caller, Pattern} ->
+      Dataserver! {get, self(), Pattern},
+      io:format("Got a get request~n"),
+      receive
+        {found, Result} ->
+          Caller! Result,
+          server(Dataserver, Backlog);
+        {failed} ->
+          server(Dataserver, [{Caller, Pattern}|Backlog])
+      end;
+    {put, Caller, Pattern} ->
+      {Result, Request, NewBacklog} = serveBacklog(Pattern, Backlog),
+      case Result of
+        found ->
+          {Caller, FoundPattern} = Request,
+          Caller! FoundPattern;
+        failed ->
+          Dataserver! {put, Pattern}
+      end,
+      io:format("Put message~n"),
+      server(Dataserver, NewBacklog)
   end.
 
+serveBacklog(Pattern, Backlog) ->
+  serveBacklog(Pattern, Backlog, []).
+
+serveBacklog(Pattern, [], List) ->
+  {failed, Pattern, List};
+serveBacklog(Pattern, [{Caller, Request}|Backlog], Checked) ->
+  case match(Pattern, Request) of
+    true ->
+      {found, {Caller, Pattern}, lists:append(lists:reverse(Checked), Backlog)};
+    false ->
+      serveBacklog(Pattern, Backlog, [{Caller, Request}|Checked])
+  end.
+  
 in(TS, Pattern) ->
   TS! {get, self(), Pattern},
   receive
@@ -20,4 +55,4 @@ in(TS, Pattern) ->
   end.
 
 out(TS, Pattern) ->
-  TS! {put, Pattern}.
+  TS! {put, self(), Pattern}.
