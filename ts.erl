@@ -16,8 +16,8 @@ server(Dataserver, Backlog) ->
     {get, Caller, Pattern} ->
       Dataserver! {get, self(), Pattern},
       receive
-        {found, {apa, bepa}} ->
-          Caller! {apa, bepa},
+        {found, Result} ->
+          Caller! Result,
           server(Dataserver, Backlog);
         {failed} ->
           server(Dataserver, [{Caller, Pattern}|Backlog])
@@ -51,7 +51,7 @@ serveBacklog(Pattern, [{Caller, Request}|Backlog], Checked) ->
 in(TS, Pattern) ->
   TS! {get, self(), Pattern},
   receive
-    {ok, Result} ->
+    Result ->
       Result
   end.
 
