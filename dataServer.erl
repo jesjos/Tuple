@@ -8,14 +8,15 @@ dataServer() ->
 dataServer(List) ->
   receive
     {get, Caller, Pattern} ->
-      io:format("data got a get request~n"),
       {Response, NewList} = findAndRemove(Pattern, List),
-      io:format("Response in data: ~p", [{Response, NewList}]),
       case Response of
         {found, Result} ->
+          io:format("Found!~n"),
           Caller! {found, Result},
+          io:format("Message sent: ~p, Caller: ~p~n", [{found, Result}, Caller]),
           dataServer(NewList);
         {failed} ->
+          io:format("Failed!"),
           Caller! failed,
           dataServer(List)
       end,

@@ -5,7 +5,9 @@
 
 new() ->
   Dataserver = spawn_link(fun() -> dataServer() end),
-  Server = spawn_link(fun() -> server(Dataserver) end).
+  Server = spawn_link(fun() -> server(Dataserver) end),
+  io:format("Server: ~p~n", [Server]),
+  Server.
 
 server(Dataserver) -> server(Dataserver, []).
 
@@ -13,10 +15,9 @@ server(Dataserver, Backlog) ->
   receive
     {get, Caller, Pattern} ->
       Dataserver! {get, self(), Pattern},
-      io:format("Got a get request~n"),
       receive
-        {found, Result} ->
-          Caller! Result,
+        {found, {apa, bepa}} ->
+          Caller! {apa, bepa},
           server(Dataserver, Backlog);
         {failed} ->
           server(Dataserver, [{Caller, Pattern}|Backlog])
