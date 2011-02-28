@@ -7,4 +7,5 @@ start() ->
   out(TS, {apa, bepa}),
   io:format("Send message"),
   A = in(TS, {apa, any}),
-  io:format("Found: ~p", [A]).
+  io:format("Found: ~p", [A]),
+  io:format("Test done").
