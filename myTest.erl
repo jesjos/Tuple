@@ -1,13 +1,9 @@
 -module (myTest).
 -export ([start/0]).
--import (ts2, [in/2, out/2, new/0]).
+-import (ts, [in/2, out/2, new/0]).
 
 start() ->
-  
-  TS = new(),
-  out(TS, test),
-  A = in(TS, test),
-  io:format("Received: ~p~n", [A]),
+  basicTest(),
   
   Blocking = blocking(),
   case Blocking of
@@ -17,6 +13,7 @@ start() ->
   
   
 blocking() ->
+  io:format("Testing blocking..."),
   Self = self(),
   TS = new(),
   T1 = spawn_link(fun() -> blocked(TS, Self) end),
@@ -44,4 +41,16 @@ releaser(TS, Parent) ->
       Parent! releaser,
       out(TS, {apa, bepa}),
       io:format("Releaser sent message~n")
+  end.
+  
+
+basicTest() ->
+  io:format("Running basic test, send and receive~n"),
+  TS = new(),
+  out(TS, {apa}),
+  case in(TS, {apa}) of
+    {apa} ->
+      io:format("Correct: Sent {apa}, got {apa}~n");
+    Other ->
+      io:format("Send and receive failed, sent {apa}, received: ~p~n", [Other])
   end.
