@@ -9,28 +9,32 @@ new() ->
 
 loop(TS,Q) ->
    receive
-      {in, From, Ref, Pattern} ->
+      {in, From, Pattern} ->
 				case findTup(TS, Pattern) of
 		     {Pattern} -> 
-						From ! {From, Ref, Pattern},
+						From ! {From, Pattern},
             loop(TS -- [Pattern], Q);
 		     false -> 
-						loop(TS, Q ++ [{From,Ref,Pattern}])
+						loop(TS, Q ++ [{From,Pattern}])
 				end;
        {out, Tuple} -> 
+io:format("Q: ~p~n", [Q]),
+io:format("TS: ~p~n", [TS]),
 		case findTup(Q, Tuple) of 
-			   {T, F, R} -> F ! {F, R, Tuple},
+			   {Tuple, From} -> From ! {F, Tuple},
 					            loop(TS, Q -- [T]);
-			   false -> loop(TS ++ [Tuple], Q)
+			   false -> loop(TS ++ [Tuple], Q),
+io:format("Q: ~p~n", [Q]),
+io:format("TS: ~p~n", [TS])
 		end;
     stop -> true
 end.
 								
 
 findTup([], _) -> false;
-findTup([ {F,R, Pattern} | TS ], Tuple) ->
+findTup([ {From, Pattern} | TS ], Tuple) ->
 		case match(Pattern, Tuple) of
-		    true -> {Tuple, F, R};
+		    true -> {Tuple, From};
 				false -> findTup(TS, Pattern)
 		end;
 
@@ -45,11 +49,9 @@ findTup([ T | TS ], Pattern) ->
 %% Note that this operation will block if there is no such tuple
 
 in(TS, Pattern) ->
-	Ref = make_ref(),
-	From = self(),
-	TS ! {in, From, Ref, Pattern},
+	TS ! {in, self(), Pattern},
   	receive
-  	  	{From, Ref, Result} ->
+  	  	{From, Result} ->
   	    	Result
     end.
 
@@ -59,7 +61,7 @@ in(TS, Pattern) ->
 out(TS, Tuple) ->
 	TS ! {out, Tuple}.
   
-
+match(_, any) -> true;
 match(any,_) -> true;
 match(P,Q) when is_tuple(P), is_tuple(Q)
                 -> match(tuple_to_list(P),tuple_to_list(Q));
