@@ -10,43 +10,33 @@ new() ->
 loop(TS,Q) ->
    receive
       {in, From, Ref, Pattern} ->
-				case findTup(TS, Pattern) of
-							{ok, Pattern} -> From ! {ok, Ref, Pattern},
-							loop(TS -- [Pattern], Q);
-	
-							false -> loop(TS, Q ++ [{From,Ref,Pattern}])
-				end;
+		case findTup(TS, Pattern) of
+		     {ok, Pattern} -> From ! {ok, Ref, Pattern},
+			      	 loop(TS -- [Pattern], Q);
+
+		     false -> loop(TS, Q ++ [{From,Ref,Pattern}])
+		end;
 
        {out, Tuple} -> 
-						case findTup(Q, Tuple) of 
-							{ok, T, F, R} -> F ! {ok, R, T},
-							loop(TS, Q -- [T]);
-							false -> loop(TS ++ [Tuple], Q)
-					end;
-      stop -> true
+		case findTup(Q, Tuple) of 
+			{ok, T, F, R} -> F ! {ok, R, T},
+					loop(TS, Q -- [T]);
+			false -> loop(TS ++ [Tuple], Q)
+		end;
+       stop -> true
 
 end.
-
-removeTup([ T | TS ], Pattern) -> 
-												case match(T, Pattern) of
-												true -> TS;
-												false -> removeTup(TS, Pattern)
-												end.
-											
+								
 
 findTup([], _) -> false;
 findTup([ {F,R,T} | TS ], Pattern) ->
-												
-												case match(T, Pattern) of
-												true -> {ok, T, F, R};
-												false -> findTup(TS, Pattern)
-												end;
+		case match(T, Pattern) of
+		        true -> {ok, T, F, R};
+			false -> findTup(TS, Pattern)
+		end;
 
 findTup([ T | TS ], Pattern) -> 
-												case match(T, Pattern) of
-												true -> {ok, Pattern};
-												false -> findTup(TS, Pattern)
-												end.
+												case match(T, Pattern) of								true -> {ok, Pattern};								false -> findTup(TS, Pattern)						end.
 											
 
 %% returns a tuple matching Pattern from tuplespace TS.
@@ -58,7 +48,7 @@ in(TS, Pattern) ->
   	receive
   	  	{ok, Ref, Result} ->
   	    	Result
- 		end.
+ 	end.
 
 
 %% – puts Tuple into the tuplespace TS
