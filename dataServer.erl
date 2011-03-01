@@ -6,25 +6,24 @@ dataServer() ->
   dataServer([]).
   
 dataServer(List) ->
-  io:format("Entered dataServer loop~n"),
+  % io:format("Entered dataServer loop~n"),
   receive
     {get, Caller, Pattern} ->
       Response = findAndRemove(Pattern, List),
-      io:format("Response: ~p~n", [Response]),
+      % io:format("Dataserver: Response: ~p~n", [Response]),
       case Response of
         {{found, Result}, NewList} ->
-          io:format("Found!~n"),
           Caller! {found, Result},
-          io:format("Message sent: ~p, Caller: ~p~n", [{found, Result}, Caller]),
+          % io:format("Dataserver: Message sent: ~p, Caller: ~p~n", [{found, Result}, Caller]),
           dataServer(NewList);
         {failed} ->
-          io:format("Failed!~n"),
+          % io:format("Dataserver: Failed!~n"),
           Caller! {failed},
           dataServer(List)
-      end,
-      io:format("Data sent a get response~n");
+      end;
+      % io:format("Data sent a get response~n");
     {put, Pattern} ->
-      io:format("Data got a put request~n"),
+      % io:format("Data got a put request~n"),
       dataServer([Pattern|List])
   end.
   
