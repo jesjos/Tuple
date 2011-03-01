@@ -1,64 +1,73 @@
 -module (ts).
 -export ([in/2, out/2, new/0]).
--import (dataServer, [dataServer/0]).
--import (match, [match/2]).
+
+%% returns the PID of a new (empty) tuplespace
 
 new() ->
-  Dataserver = spawn_link(fun() -> dataServer() end),
-  Server = spawn_link(fun() -> server(Dataserver) end).
+ 		spawn_link(fun() -> loop([],[]) end).
 
-server(Dataserver) -> server(Dataserver, []).
 
-server(Dataserver, Backlog) ->
-  io:format("Server loop start~n"),
-  receive
-    {get, Caller, Pattern} ->
-      io:format("Got a get request"),
-      Dataserver! {get, self(), Pattern},
-      receive
-        {found, Result} ->
-          io:format("Get: Server received found result~n"),
-          Caller! Result,
-          server(Dataserver, Backlog);
-        {failed} ->
-          io:format("Get: Server received failed result~n"),
-          server(Dataserver, [{Caller, Pattern}|Backlog])
-      end;
-    {put, Caller, Pattern} ->
-      io:format("Got a put request"),
-      {Result, Request, NewBacklog} = serveBacklog(Pattern, Backlog),
-      io:format("Result from backlog: ~p ~p", [Result, Request]),
-      case Result of
-        found ->
-          {OldCaller, FoundPattern} = Request,
-          OldCaller! FoundPattern,
-          io:format("Sent blacklog~n");
-        failed ->
-          io:format("Found no backlog match"),
-          Dataserver! {put, Pattern}
-      end,
-      server(Dataserver, NewBacklog)
-  end.
+loop(TS,Q) ->
+   receive
+      {in, From, Pattern} ->
+				case findTup(TS, Pattern) of
+		     {Pattern} -> 
+						From ! {From, Pattern},
+            loop(TS -- [Pattern], Q);
+		     false -> 
+						loop(TS, Q ++ [{From,Pattern}])
+				end;
+       {out, Tuple} -> 
+io:format("Q: ~p~n", [Q]),
+io:format("TS: ~p~n", [TS]),
+		case findTup(Q, Tuple) of 
+			   {Tuple, From} -> From ! {F, Tuple},
+					            loop(TS, Q -- [T]);
+			   false -> loop(TS ++ [Tuple], Q),
+io:format("Q: ~p~n", [Q]),
+io:format("TS: ~p~n", [TS])
+		end;
+    stop -> true
+end.
+								
 
-serveBacklog(Pattern, Backlog) ->
-  serveBacklog(Pattern, Backlog, []).
+findTup([], _) -> false;
+findTup([ {From, Pattern} | TS ], Tuple) ->
+		case match(Pattern, Tuple) of
+		    true -> {Tuple, From};
+				false -> findTup(TS, Pattern)
+		end;
 
-serveBacklog(Pattern, [], List) ->
-  {failed, Pattern, List};
-serveBacklog(Pattern, [{Caller, Request}|Backlog], Checked) ->
-  case match(Pattern, Request) of
-    true ->
-      {found, {Caller, Pattern}, lists:append(lists:reverse(Checked), Backlog)};
-    false ->
-      serveBacklog(Pattern, Backlog, [{Caller, Request}|Checked])
-  end.
-  
+findTup([ T | TS ], Pattern) -> 
+		case match(Pattern, T) of
+					true -> {T};
+					false -> findTup(TS, Pattern)	
+		end.
+											
+
+%% returns a tuple matching Pattern from tuplespace TS.
+%% Note that this operation will block if there is no such tuple
+
 in(TS, Pattern) ->
-  TS! {get, self(), Pattern},
-  receive
-    Result ->
-      Result
-  end.
+	TS ! {in, self(), Pattern},
+  	receive
+  	  	{From, Result} ->
+  	    	Result
+    end.
 
-out(TS, Pattern) ->
-  TS! {put, self(), Pattern}.
+
+%% – puts Tuple into the tuplespace TS
+
+out(TS, Tuple) ->
+	TS ! {out, Tuple}.
+  
+match(_, any) -> true;
+match(any,_) -> true;
+match(P,Q) when is_tuple(P), is_tuple(Q)
+                -> match(tuple_to_list(P),tuple_to_list(Q));
+match([P|PS],[L|LS]) -> case match(P,L) of
+                              true -> match(PS,LS);
+                              false -> false
+                         end;
+match(P,P) -> true;
+match(_,_) -> false.
