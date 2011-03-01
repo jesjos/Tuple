@@ -5,33 +5,38 @@
 
 new() ->
   Dataserver = spawn_link(fun() -> dataServer() end),
-  Server = spawn_link(fun() -> server(Dataserver) end),
-  io:format("Server: ~p~n", [Server]),
-  Server.
+  Server = spawn_link(fun() -> server(Dataserver) end).
 
 server(Dataserver) -> server(Dataserver, []).
 
 server(Dataserver, Backlog) ->
+  io:format("Server loop start~n"),
   receive
     {get, Caller, Pattern} ->
+      io:format("Got a get request"),
       Dataserver! {get, self(), Pattern},
       receive
         {found, Result} ->
+          io:format("Get: Server received found result~n"),
           Caller! Result,
           server(Dataserver, Backlog);
         {failed} ->
+          io:format("Get: Server received failed result~n"),
           server(Dataserver, [{Caller, Pattern}|Backlog])
       end;
     {put, Caller, Pattern} ->
+      io:format("Got a put request"),
       {Result, Request, NewBacklog} = serveBacklog(Pattern, Backlog),
+      io:format("Result from backlog: ~p ~p", [Result, Request]),
       case Result of
         found ->
-          {Caller, FoundPattern} = Request,
-          Caller! FoundPattern;
+          {OldCaller, FoundPattern} = Request,
+          OldCaller! FoundPattern,
+          io:format("Sent blacklog~n");
         failed ->
+          io:format("Found no backlog match"),
           Dataserver! {put, Pattern}
       end,
-      io:format("Put message~n"),
       server(Dataserver, NewBacklog)
   end.
 
