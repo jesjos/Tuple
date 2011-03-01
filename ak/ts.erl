@@ -10,14 +10,16 @@ new() ->
 loop(TS,Q) ->
    receive
       {in, From, Ref, Pattern} ->
-		case findTup(TS, Pattern) of
-		     {Pattern} -> From ! {From, Ref, Pattern},
-                          loop(TS -- [Pattern], Q);
-		     false -> loop(TS, Q ++ [{From,Ref,Pattern}])
-		end;
+				case findTup(TS, Pattern) of
+		     {Pattern} -> 
+						From ! {From, Ref, Pattern},
+            loop(TS -- [Pattern], Q);
+		     false -> 
+						loop(TS, Q ++ [{From,Ref,Pattern}])
+				end;
        {out, Tuple} -> 
 		case findTup(Q, Tuple) of 
-			   {T, F, R} -> F ! {F, R, T},
+			   {T, F, R} -> F ! {F, R, Tuple},
 					            loop(TS, Q -- [T]);
 			   false -> loop(TS ++ [Tuple], Q)
 		end;
@@ -34,7 +36,7 @@ findTup([ {F,R, Pattern} | TS ], Tuple) ->
 
 findTup([ T | TS ], Pattern) -> 
 		case match(Pattern, T) of
-					true -> {Pattern};
+					true -> {T};
 					false -> findTup(TS, Pattern)	
 		end.
 											
@@ -44,7 +46,7 @@ findTup([ T | TS ], Pattern) ->
 
 in(TS, Pattern) ->
 	Ref = make_ref(),
-	From=self(),
+	From = self(),
 	TS ! {in, From, Ref, Pattern},
   	receive
   	  	{From, Ref, Result} ->
@@ -55,8 +57,7 @@ in(TS, Pattern) ->
 %% – puts Tuple into the tuplespace TS
 
 out(TS, Tuple) ->
-	Ref = make_ref(),
-	TS ! {out, self(), Ref, Tuple}.
+	TS ! {out, Tuple}.
   
 
 match(any,_) -> true;
