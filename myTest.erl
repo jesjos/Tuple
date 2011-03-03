@@ -1,5 +1,5 @@
 -module (myTest).
--export ([start/0, cb/0]).
+-export ([start/0, cb/0, cbIN/2, concBasicIN/3, cbOUT/2]).
 -import (ts, [in/2, out/2, new/0]).
 
 start() ->
