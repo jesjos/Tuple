@@ -20,32 +20,24 @@ new() ->
 server(Dataserver) -> server(Dataserver, []).
 
 server(Dataserver, Backlog) ->
-  % io:format("Server loop start, Backlog is: ~p~n", [Backlog]),
   receive
     {get, Caller, Pattern} ->
-      % io:format("Got a get request~n"),
       Dataserver! {get, self(), Pattern},
       receive
         {found, Result} ->
-          % io:format("Get: Server received found result~n"),
           Caller! Result,
           server(Dataserver, Backlog);
         {failed} ->
-          % io:format("Get: Server received failed result~n"),
           server(Dataserver, [{Caller, Pattern}|Backlog])
       end;
     {put, Caller, Pattern} ->
-      % io:format("Server: got a put request~n"),
       % The backlog needs to be reversed in order to serve older messages first
       {Result, Request, NewBacklog} = serveBacklog(Pattern, lists:reverse(Backlog)),
-      % io:format("Server: result from backlog: ~p for request: ~p~n", [Result, Request]),
       case Result of
         found ->
           {OldCaller, FoundPattern} = Request,
           OldCaller! FoundPattern;
-          % io:format("Sent blacklog~n");
         failed ->
-          % io:format("Found no backlog match~n"),
           Dataserver! {put, Pattern}
       end,
       % The backlog needs to be reversed again in order to append new backlog messages

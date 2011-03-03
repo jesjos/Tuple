@@ -14,9 +14,6 @@ start() ->
   
   emptySpaceAndTupleRemoval().
   
-  %% massive(300).
-  
-  
 blocking() ->
   io:format("Testing blocking...~nCreating blocking process and receiving process.~n"),
   Self = self(),
@@ -76,79 +73,37 @@ basicTests() ->
   end.
 
 
-massive(N) -> 
-  TS = new(),
-  massive(TS, N, []).
-
-massive(TS, 0, List) ->
-  receive
-    after 3000 -> massive(stop, List)
-  end;
-massive(TS, N, List) ->
-  io:format("List: ~p~n", [List]),
-  NewInner = spawn_link(fun() -> inner(TS, N) end),
-  NewOutter = spawn_link(fun() -> outter(TS, N) end),
-  massive (TS, N-1, [NewInner|[NewOutter|List]]).
-
-massive(stop, []) ->
-  true;
-massive(stop, [Head|List]) ->
-  Head! stop,
-  massive(stop, List).
-
-inner(TS, Tuple) -> inner(TS, Tuple, Tuple).
-
-inner(_,_,0) -> true;
-inner(TS, Tuple, N) ->
-  receive
-    stop ->
-      true
-  after 1 ->
-    Result = in(TS, {Tuple, N}),
-    io:format("       An inner received: ~p~n", [Result]),
-    inner(TS, Tuple, N-1)
-  end.
-
-outter(TS, Tuple) -> outter(TS, Tuple, Tuple).
-
-outter(_,_,0) -> true;
-outter(TS, Tuple, N) ->
-  receive
-    stop ->
-      true
-    after 1 -> 
-      io:format("       An outter is sending: ~p~n", [{Tuple, N}]),
-      out(TS, {Tuple, N}),
-      outter(TS, Tuple, N-1)
-  end.
-  
-
 emptySpaceAndTupleRemoval() ->
   io:format("Beginning tuple removal test.~n"),
   TS = new(),
   Self = self(),
   Writer = spawn_link(fun() -> writer(TS, Self) end),
-  spawn_link(fun() -> reader(TS, Writer) end),
-  spawn_link(fun() -> reader(TS, Writer) end),
+  spawn_link(fun() -> reader(TS,1, Writer) end),
+  spawn_link(fun() -> reader(TS,2, Writer) end),
   receive
     done ->
-      io:format("Correct: tuples are removed by IN-operations and tuplespace is empty.~n");
-    failedRemoval ->
-      io:format("Failed: tuples aren't removed.~n")
+      io:format("Correct: tuples are removed by IN-operations and tuplespace is empty. Message queue is fair. ~n");
+    {failed, removal} ->
+      io:format("Failed: tuples aren't removed.~n");
+    {failed, order} ->
+      io:format("Failed: order a of receives is wrong, message queue isn't fair.~n")
   after 3000 ->
     io:format("Failed: tupleremoval failed due to time-out.~n")
   end.
 
-reader(TS, Writer) ->
+% Reads a tuple and sends a done message to a writer
+reader(TS, X, Writer) ->
   {_, N} = inprint(TS, {test, any}),
-  io:format("     Reader no ~p received a tuple.~n", [N]),
-  Writer! done.
+  io:format("     Reader no ~p received a tuple: ~p.~n", [X, N]),
+  Writer! {done, X}.
 
+% Reads any tuple - used to check if TS is empty
 anyReader(TS, Writer) ->
   in(TS, any),
   io:format("     The any-reader received a tuple.~n"),
   Writer! done.
 
+% Writes tuples to TS. Spawns an anyReader when write is complete. Receives done messages.
 writer(TS, Parent) ->
   Self = self(),
   writeout(TS, 2),
@@ -160,23 +115,29 @@ writeout(TS,N) ->
    outprint(TS, {test,N}),
    writeout(TS, N-1).
    
-writerReceive(Parent) -> r(Parent,2).
+writerReceive(Parent) -> r(Parent,0,2).
 
-r(Parent, 0) ->
+% If we receive a message after receiving the two previous messages, the TS is not empty
+r(Parent,N,N) ->
   receive
     _ ->
-      Parent! failedRemoval
+      Parent! {failed, removal}
   after 1000 ->
       Parent! done
   end;
-r(Parent, N) -> 
+% Receives a reader-done message. Checks that order is correct.
+r(Parent, X,N) ->
+  Y = X+1, 
   receive
+    {done, Y} ->
+      r(Parent, Y, N);
     _ ->
-      r(Parent, N-1)
+      Parent! {failed, order}
   end.
       
 %% Helper functions
 
+% Pretty-printing
 outprint(TS, Pattern) ->
   io:format("   OUT - TS: ~p Pattern: ~p~n", [TS, Pattern]),
   out(TS,Pattern).

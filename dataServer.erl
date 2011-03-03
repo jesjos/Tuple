@@ -1,3 +1,7 @@
+%%  A dataserver. Receives get and put requests.
+%%  Returns results to caller. 
+%%  Performs no additional actions if request fails (i.e. has no request queue).
+
 -module (dataServer).
 -export ([dataServer/0]).
 -import (match, [match/2]).
@@ -6,28 +10,23 @@ dataServer() ->
   dataServer([]).
   
 dataServer(List) ->
-  % io:format("Entered dataServer loop~n"),
   receive
     {get, Caller, Pattern} ->
       Response = findAndRemove(Pattern, List),
-      % io:format("Dataserver: Response: ~p~n", [Response]),
       case Response of
         {{found, Result}, NewList} ->
           Caller! {found, Result},
-          % io:format("Dataserver: Message sent: ~p, Caller: ~p~n", [{found, Result}, Caller]),
           dataServer(NewList);
         {failed} ->
-          % io:format("Dataserver: Failed!~n"),
           Caller! {failed},
           dataServer(List)
       end;
-      % io:format("Data sent a get response~n");
     {put, Pattern} ->
-      % io:format("Data got a put request~n"),
       dataServer([Pattern|List])
   end.
   
   
+%% Finds a matching tuple in a list and removes it.
 findAndRemove(Pattern, List) ->
   findAndRemove(Pattern, List, []).
 
