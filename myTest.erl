@@ -135,7 +135,8 @@ r(Parent, X,N) ->
       Parent! {failed, order}
   end.
 
-  
+%% Calls in/out with different tuples to ensure that user
+%% can not crasch program by inserting "wrong" tuples
 cb()->
 TS = new(),
 
@@ -145,6 +146,8 @@ spawn_link(fun() -> cbOUT(TS,a) end),
 spawn_link(fun() -> cbIN(TS,[a]) end),
 spawn_link(fun() -> cbOUT(TS,[a]) end),
 
+%% tests that the first two process blocks
+%% but still lets third process receive msg
 spawn_link(fun() -> cbIN(TS,{a}) end),
 spawn_link(fun() -> cbIN(TS,[]) end),
 spawn_link(fun() -> cbIN(TS,[a,b]) end),
@@ -158,7 +161,7 @@ spawn_link(fun() -> cbIN(TS,{any, a}) end),
 spawn_link(fun() -> cbIN(TS,{123, any}) end),
 spawn_link(fun() -> cbOUT(TS, {123,45}) end).
 
-
+%% calls in and waits for respons
 cbIN(TS, Tuple)->
 Self = self(),
 spawn_link(myTest, concBasicIN, [TS, Tuple, Self]),
