@@ -1,5 +1,5 @@
 -module (myTest).
--export ([start/0]).
+-export ([start/0, cb/0]).
 -import (ts, [in/2, out/2, new/0]).
 
 start() ->
@@ -134,7 +134,50 @@ r(Parent, X,N) ->
     _ ->
       Parent! {failed, order}
   end.
-      
+
+  
+cb()->
+TS = new(),
+
+spawn_link(fun() -> cbIN(TS,a) end),
+spawn_link(fun() -> cbOUT(TS,a) end),
+
+spawn_link(fun() -> cbIN(TS,[a]) end),
+spawn_link(fun() -> cbOUT(TS,[a]) end),
+
+spawn_link(fun() -> cbIN(TS,{a}) end),
+spawn_link(fun() -> cbIN(TS,[]) end),
+spawn_link(fun() -> cbIN(TS,[a,b]) end),
+spawn_link(fun() -> cbOUT(TS,{a,b}) end),
+
+
+
+spawn_link(fun() -> cbOUT(TS,{a,b}) end),
+spawn_link(fun() -> cbIN(TS,{any, a}) end),
+
+spawn_link(fun() -> cbIN(TS,{123, any}) end),
+spawn_link(fun() -> cbOUT(TS, {123,45}) end).
+
+
+cbIN(TS, Tuple)->
+Self = self(),
+spawn_link(myTest, concBasicIN, [TS, Tuple, Self]),
+io:format("IN call with tuple: ~p~n",[Tuple]),
+receive 
+	{ok, T} -> 
+		io:format("IN with tuple: ~p was OK~n", [T])
+       after 4000 -> 
+		io:format("IN with tuple: ~p FAILED~n", [Tuple])
+end.
+
+concBasicIN(TS, Tuple, From) ->
+  From ! {ok, in(TS, Tuple)}.
+
+cbOUT(TS, Tuple)->
+io:format("OUT call with ~p~n",[Tuple]),
+out(TS, Tuple).  
+  
+  
 %% Helper functions
 
 % Pretty-printing
