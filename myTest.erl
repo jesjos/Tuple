@@ -4,6 +4,7 @@
 
 start() ->
   basicTests(),
+ 
   
   
   Blocking = blocking(),
@@ -12,7 +13,8 @@ start() ->
     false -> io:format("Blocking failed~n")
   end,
   
-  emptySpaceAndTupleRemoval().
+  emptySpaceAndTupleRemoval(),
+  cb().
   
 blocking() ->
   io:format("Testing blocking...~nCreating blocking process and receiving process.~n"),
@@ -139,6 +141,8 @@ r(Parent, X,N) ->
 %% can not crasch program by inserting "wrong" tuples
 cb()->
 TS = new(),
+io:format("~nWill test some IN/OUT calls with different tuples to assure that user"),
+io:format("can not crasch program by inserting wrong tuples, also blocking will be tested~n"),
 
 spawn_link(fun() -> cbIN(TS,a) end),
 spawn_link(fun() -> cbOUT(TS,a) end),
